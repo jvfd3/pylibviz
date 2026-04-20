@@ -39,13 +39,13 @@ Depois abra no navegador: <http://localhost:8000>
 
 ## Publicar no GitHub Pages
 
-1. Envie os arquivos para o repositorio.
+Este repositório já inclui um workflow em [.github/workflows/pages.yml](.github/workflows/pages.yml) para publicar automaticamente no GitHub Pages a cada push na branch `main`.
+
+1. Envie os arquivos para o repositório.
 2. No GitHub, abra Settings > Pages.
-3. Em Build and deployment:
-   - Source: Deploy from a branch
-   - Branch: main (ou master)
-   - Folder: /(root)
-4. Salve e aguarde a publicacao.
+3. Em Build and deployment, selecione Source: GitHub Actions.
+4. Faça push para `main` e aguarde o job concluir.
+5. O link publicado aparecerá na aba Actions e em Settings > Pages.
 
 ## Limites atuais (MVP)
 
