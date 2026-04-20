@@ -18,7 +18,7 @@ def parse_requirements_text(text: str) -> str:
                 {
                     "line": index,
                     "raw": raw_line,
-                    "warning": "Referencias -r nao sao processadas neste MVP.",
+                    "warning": "-r references are not processed in this MVP.",
                 }
             )
             continue
@@ -39,7 +39,7 @@ def parse_requirements_text(text: str) -> str:
                 {
                     "line": index,
                     "raw": raw_line,
-                    "warning": "Linha invalida para parser PEP 508.",
+                    "warning": "Invalid line for PEP 508 parser.",
                 }
             )
 

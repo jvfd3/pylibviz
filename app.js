@@ -14,7 +14,6 @@ const els = {
   pythonSelect: document.getElementById("python-select"),
   analyzeBtn: document.getElementById("analyze-btn"),
   status: document.getElementById("status"),
-  summary: document.getElementById("summary-content"),
   results: document.getElementById("results"),
 };
 
@@ -24,39 +23,61 @@ attachEvents();
 function initializePythonVersionSelector() {
   const defaults = new Set(["3.10", "3.11", "3.12", "3.13"]);
 
-  for (const version of SUPPORTED_PYTHON_VERSIONS) {
-    const label = document.createElement("label");
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.name = "python-version";
-    input.value = version;
-    input.checked = defaults.has(version);
+  // Reset and build a continuous version bar.
+  els.pythonSelect.innerHTML = "";
+  const bar = document.createElement("div");
+  bar.className = "python-version-bar";
 
-    const text = document.createTextNode(`Python ${version}`);
-    label.appendChild(input);
-    label.appendChild(text);
-    els.pythonSelect.appendChild(label);
+  for (const version of SUPPORTED_PYTHON_VERSIONS) {
+    const segment = document.createElement("button");
+    segment.className = "python-segment";
+    segment.type = "button";
+    segment.dataset.version = version;
+    segment.title = `Python ${version}`;
+    segment.setAttribute("aria-label", `Python ${version}`);
+    segment.textContent = version;
+
+    if (defaults.has(version)) {
+      segment.classList.add("selected");
+    }
+
+    segment.addEventListener("click", function (e) {
+      e.preventDefault();
+      this.classList.toggle("selected");
+    });
+
+    bar.appendChild(segment);
   }
+
+  els.pythonSelect.appendChild(bar);
 }
 
 function attachEvents() {
   els.analyzeBtn.addEventListener("click", onAnalyze);
+
+  // Shortcut: Ctrl+R (or Cmd+R) to analyze compatibility.
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "r") {
+      e.preventDefault();
+      onAnalyze();
+    }
+  });
 }
 
 function selectedPythonVersions() {
-  return [
-    ...document.querySelectorAll("input[name='python-version']:checked"),
-  ].map((i) => i.value);
+  return [...document.querySelectorAll(".python-segment.selected")].map(
+    (i) => i.dataset.version,
+  );
 }
 
 async function onAnalyze() {
   try {
-    setStatus("Preparando parser Python...");
+    setStatus("Preparing Python parser...");
     await waitForPythonParser();
 
     const selectedPy = selectedPythonVersions();
     if (selectedPy.length === 0) {
-      renderError("Selecione ao menos uma versao do Python para comparar.");
+      renderError("Select at least one Python version to compare.");
       return;
     }
 
@@ -67,22 +88,26 @@ async function onAnalyze() {
     const warnings = requirements.filter((r) => r.warning);
 
     if (validReqs.length === 0) {
-      renderError(
-        "Nenhuma dependencia valida encontrada. Verifique o texto inserido.",
-      );
+      renderError("No valid dependencies found. Check the input text.");
       return;
     }
 
-    setStatus("Consultando metadados no PyPI...");
+    setStatus("Fetching metadata from PyPI...");
     const packageData = await Promise.all(
       validReqs.map((req) => analyzePackage(req, selectedPy)),
     );
 
-    renderSummary(validReqs, warnings, selectedPy, packageData);
+    if (warnings.length > 0) {
+      setStatus(
+        `Analysis completed for ${packageData.length} package(s) with ${warnings.length} warning(s).`,
+      );
+    }
     renderTimeline(packageData, selectedPy);
-    setStatus(`Analise concluida para ${packageData.length} pacote(s).`);
+    if (warnings.length === 0) {
+      setStatus(`Analysis completed for ${packageData.length} package(s).`);
+    }
   } catch (error) {
-    renderError(`Falha na analise: ${error.message}`);
+    renderError(`Analysis failed: ${error.message}`);
   }
 }
 
@@ -97,7 +122,7 @@ async function analyzePackage(requirement, selectedPython) {
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Pacote ${packageName} nao encontrado no PyPI.`);
+    throw new Error(`Package ${packageName} was not found on PyPI.`);
   }
 
   const payload = await response.json();
@@ -109,9 +134,9 @@ async function analyzePackage(requirement, selectedPython) {
 
   return {
     packageName,
-    specifier: requirement.specifier || "(sem restricao no requirements)",
+    specifier: requirement.specifier || "(no requirement constraint)",
     requestedByUser: requirement.raw,
-    latestVersion: payload.info?.version || "desconhecida",
+    latestVersion: payload.info?.version || "unknown",
     releases,
   };
 }
@@ -161,75 +186,169 @@ function normalizeReleases(releasesObj, requirement, selectedPython) {
   return rows.slice(0, RELEASE_LIMIT_PER_PACKAGE);
 }
 
-function renderSummary(validReqs, warnings, selectedPy, packageData) {
-  const matchingCounts = packageData.map((pkg) => {
-    const matches = pkg.releases.filter((r) => r.matchesUserSpecifier).length;
-    return `${pkg.packageName}: ${matches}/${pkg.releases.length} versoes no recorte atendem ao specifier`;
-  });
+function renderCompatibilityBar(release, selectedPy) {
+  /**
+   * Renders a continuous compatibility bar
+   * Similar to the Python version selector
+   */
+  const segments = selectedPy
+    .map((py) => {
+      const ok = release.compat[py];
+      return `
+        <div 
+          class="compat-segment ${ok ? "compat-segment-ok" : "compat-segment-bad"}" 
+          title="Python ${py}: ${ok ? "compatible" : "not compatible"}"
+        >
+          <span class="compat-version">${py}</span>
+        </div>
+      `;
+    })
+    .join("");
 
-  const warningHtml = warnings.length
-    ? `<p><strong>Observacoes:</strong> ${warnings
-        .map(
-          (w) =>
-            `linha ${w.line} (${escapeHtml(w.raw)}): ${escapeHtml(w.warning)}`,
-        )
-        .join(" | ")}</p>`
+  return `
+    <div class="compat-bar">
+      ${segments}
+    </div>
+  `;
+}
+
+function countCompatiblePython(release, selectedPy) {
+  return selectedPy.reduce(
+    (count, py) => count + (release.compat[py] ? 1 : 0),
+    0,
+  );
+}
+
+function selectPrimaryRelease(releases, selectedPy) {
+  if (!releases || releases.length === 0) {
+    return { index: -1, reason: "" };
+  }
+
+  // Priority 1: most recent release that matches the requirements specifier.
+  const matchesSpecifierIndex = releases.findIndex(
+    (r) => r.matchesUserSpecifier,
+  );
+  if (matchesSpecifierIndex !== -1) {
+    return {
+      index: matchesSpecifierIndex,
+      reason: "highlight: matches specifier",
+    };
+  }
+
+  // Priority 2: most recent release with the highest compatibility across selected Python versions.
+  let bestIndex = 0;
+  let bestScore = countCompatiblePython(releases[0], selectedPy);
+  for (let i = 1; i < releases.length; i += 1) {
+    const score = countCompatiblePython(releases[i], selectedPy);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+  if (bestScore > 0) {
+    return {
+      index: bestIndex,
+      reason: `highlight: ${bestScore}/${selectedPy.length} compatible`,
+    };
+  }
+
+  // Priority 3: most recent release (list is already sorted by descending date).
+  return { index: 0, reason: "highlight: most recent release" };
+}
+
+function renderReleaseRow(release, selectedPy, highlightReason = "") {
+  const compatBar = renderCompatibilityBar(release, selectedPy);
+
+  const hitBadge = release.matchesUserSpecifier
+    ? '<span class="badge badge-hit">matches specifier</span>'
     : "";
 
-  els.summary.innerHTML = `
-    <p><strong>Pacotes analisados:</strong> ${validReqs.length}</p>
-    <p><strong>Python selecionado:</strong> ${selectedPy.join(", ")}</p>
-    <p><strong>Recorte por pacote:</strong> ultimas ${RELEASE_LIMIT_PER_PACKAGE} releases com data disponivel</p>
-    <p>${matchingCounts.map(escapeHtml).join("<br>")}</p>
-    ${warningHtml}
+  const focusBadge = highlightReason
+    ? `<span class="badge badge-focus">${escapeHtml(highlightReason)}</span>`
+    : "";
+
+  const reqPyLabel = release.requiresPython
+    ? escapeHtml(release.requiresPython)
+    : "not provided";
+
+  return `
+    <article class="release-row">
+      <div class="release-layout">
+        <div class="release-meta-vertical">
+          <div class="meta-line">
+            <span class="meta-key">Version:</span>
+            <span class="meta-value">v${escapeHtml(release.version)}</span>
+          </div>
+          <div class="meta-line">
+            <span class="meta-key">Date:</span>
+            <span class="meta-value">${escapeHtml(release.uploadDate)}</span>
+          </div>
+          <div class="meta-line">
+            <span class="meta-key">Python:</span>
+            <span class="meta-value">${reqPyLabel}</span>
+          </div>
+        </div>
+      
+        <div class="compat-container">
+          ${compatBar}
+          <div class="badges">${hitBadge}${focusBadge}</div>
+        </div>
+      </div>
+    </article>
   `;
 }
 
 function renderTimeline(packageData, selectedPy) {
   if (packageData.length === 0) {
-    els.results.innerHTML =
-      '<div class="empty">Nenhum resultado para exibir.</div>';
+    els.results.innerHTML = '<div class="empty">No results to display.</div>';
     return;
   }
 
   const cards = packageData.map((pkg) => {
-    const releaseRows = pkg.releases
-      .map((release) => {
-        const compatBadges = selectedPy
-          .map((py) => {
-            const ok = release.compat[py];
-            return `<span class="badge ${ok ? "badge-ok" : "badge-bad"}">${ok ? "OK" : "X"} py${py}</span>`;
-          })
-          .join(" ");
+    if (!pkg.releases || pkg.releases.length === 0) {
+      return `
+        <section class="pkg-card">
+          <div class="pkg-head">
+            <span class="pkg-name">${escapeHtml(pkg.packageName)}</span>
+            <span class="pkg-spec">Required version: ${escapeHtml(pkg.specifier)}</span>
+          </div>
+          <div class="timeline"><div class="empty">No releases with dates.</div></div>
+        </section>
+      `;
+    }
 
-        const hitBadge = release.matchesUserSpecifier
-          ? '<span class="badge badge-hit">atende specifier</span>'
-          : "";
+    const { index: primaryIndex, reason } = selectPrimaryRelease(
+      pkg.releases,
+      selectedPy,
+    );
 
-        const reqPyLabel = release.requiresPython
-          ? `requires_python: ${escapeHtml(release.requiresPython)}`
-          : "requires_python: nao informado";
+    const primaryRelease = pkg.releases[primaryIndex] || pkg.releases[0];
+    const fallbackIndex = primaryRelease === pkg.releases[0] ? 0 : primaryIndex;
 
-        return `
-          <article class="release-row">
-            <div class="release-meta">
-              <span>v${escapeHtml(release.version)}</span>
-              <span>${escapeHtml(release.uploadDate)}</span>
-              <span>${reqPyLabel}</span>
-            </div>
-            <div class="badges">${compatBadges} ${hitBadge}</div>
-          </article>
-        `;
-      })
+    const extraRows = pkg.releases
+      .filter((_, idx) => idx !== fallbackIndex)
+      .map((release) => renderReleaseRow(release, selectedPy))
       .join("");
+
+    const extrasHtml = extraRows
+      ? `
+        <details class="pkg-collapse">
+          <summary>show more versions (${pkg.releases.length - 1})</summary>
+          <div class="pkg-collapse-content">${extraRows}</div>
+        </details>
+      `
+      : "";
 
     return `
       <section class="pkg-card">
         <div class="pkg-head">
           <span class="pkg-name">${escapeHtml(pkg.packageName)}</span>
-          <span class="pkg-spec">specifier no requirements: ${escapeHtml(pkg.specifier)}</span>
+          <span class="pkg-spec">Required version: ${escapeHtml(pkg.specifier)}</span>
         </div>
-        <div class="timeline">${releaseRows || '<div class="empty">Sem releases com data.</div>'}</div>
+        <div class="timeline">
+          ${renderReleaseRow(primaryRelease, selectedPy, reason)}
+          ${extrasHtml}
+        </div>
       </section>
     `;
   });
@@ -238,7 +357,7 @@ function renderTimeline(packageData, selectedPy) {
 }
 
 function renderError(message) {
-  setStatus("Erro durante a analise.");
+  setStatus("Error during analysis.");
   els.results.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
 }
 
@@ -258,7 +377,7 @@ function waitForPythonParser() {
       }
 
       if (performance.now() - start > timeoutMs) {
-        reject(new Error("PyScript nao inicializou a tempo."));
+        reject(new Error("PyScript did not initialize in time."));
         return;
       }
 

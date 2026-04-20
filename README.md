@@ -1,54 +1,54 @@
 # pylibviz
 
-Visualizador de compatibilidade entre bibliotecas Python, releases no PyPI e versoes do Python.
+Compatibility visualizer for Python libraries, PyPI releases, and Python versions.
 
-## Objetivo
+## Goal
 
-Este projeto resolve a dor de verificar conflitos de versao entre pacotes Python.
-Voce cola um requirements.txt em texto e recebe:
+This project addresses the pain of checking version conflicts between Python packages.
+You paste a requirements.txt and get:
 
-- lista de pacotes detectados;
-- timeline das ultimas releases de cada pacote;
-- comparacao de compatibilidade por versao de Python selecionada;
-- destaque das releases que atendem o specifier definido no requirements.
+- a list of detected packages;
+- a timeline of recent releases for each package;
+- compatibility comparison by selected Python version;
+- highlighted releases that match the requirements specifier.
 
-## Como funciona
+## How it works
 
-- Interface estatica (compativel com GitHub Pages).
-- Parser de requirements e regras de specifier em Python, executando no navegador via PyScript.
-- Metadados de releases consultados em tempo real na API JSON do PyPI.
-- Compatibilidade calculada com base no campo requires_python de cada release.
+- Static interface (compatible with GitHub Pages).
+- Requirements parser and specifier logic in Python, running in the browser via PyScript.
+- Release metadata fetched in real time from the PyPI JSON API.
+- Compatibility computed from each release's requires_python field.
 
-## Estrutura
+## Structure
 
-- index.html: pagina principal.
-- styles.css: estilo visual.
-- app.js: consulta ao PyPI e renderizacao da timeline.
-- app.py: parser de requirements e avaliacao de compatibilidade (PEP 508 / specifiers).
-- pyscript.toml: dependencias Python carregadas no navegador.
+- index.html: main page.
+- styles.css: visual styles.
+- app.js: PyPI requests and timeline rendering.
+- app.py: requirements parser and compatibility evaluation (PEP 508 / specifiers).
+- pyscript.toml: Python dependencies loaded in the browser.
 
-## Executar localmente
+## Run locally
 
-Opcao simples:
+Simple option:
 
 ```bash
 python -m http.server 8000
 ```
 
-Depois abra no navegador: <http://localhost:8000>
+Then open in your browser: <http://localhost:8000>
 
-## Publicar no GitHub Pages
+## Publish on GitHub Pages
 
-Este repositório já inclui um workflow em [.github/workflows/pages.yml](.github/workflows/pages.yml) para publicar automaticamente no GitHub Pages a cada push na branch `main`.
+This repository already includes a workflow at [.github/workflows/pages.yml](.github/workflows/pages.yml) to publish automatically to GitHub Pages on each push to the `main` branch.
 
-1. Envie os arquivos para o repositório.
-2. No GitHub, abra Settings > Pages.
-3. Em Build and deployment, selecione Source: GitHub Actions.
-4. Faça push para `main` e aguarde o job concluir.
-5. O link publicado aparecerá na aba Actions e em Settings > Pages.
+1. Push files to the repository.
+2. On GitHub, open Settings > Pages.
+3. Under Build and deployment, set Source to GitHub Actions.
+4. Push to `main` and wait for the job to finish.
+5. The published URL appears in the Actions tab and in Settings > Pages.
 
-## Limites atuais (MVP)
+## Current limits (MVP)
 
-- Linhas com -r/--requirement sao sinalizadas, mas nao carregadas automaticamente.
-- O recorte exibe as ultimas 16 releases por pacote (para manter desempenho no navegador).
-- Se um pacote nao informa requires_python em determinada release, ela e tratada como compativel por falta de restricao explicita.
+- Lines with -r/--requirement are flagged but not loaded automatically.
+- The view includes the latest 16 releases per package (to keep browser performance stable).
+- If a package does not declare requires_python in a release, it is treated as compatible due to missing explicit constraints.

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PyLibViz - Timeline de Compatibilidade Python</title>
+    <title>PyLibViz - Python Compatibility Timeline</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -26,46 +26,36 @@
 
     <main class="layout">
       <header class="hero">
-        <p class="eyebrow">compatibilidade de dependencias</p>
+        <p class="eyebrow">dependency compatibility</p>
         <h1>PyLibViz</h1>
         <p class="subtitle">
-          Cole seu requirements.txt e veja, em uma timeline, como as versoes dos
-          pacotes se alinham com as versoes do Python e seus requisitos de
-          compatibilidade.
+          Paste your requirements.txt and view, in a timeline, how package
+          versions align with Python versions and compatibility constraints.
         </p>
       </header>
 
       <section class="panel input-panel">
-        <label for="requirements-input">requirements.txt (texto)</label>
+        <label for="requirements-input">requirements.txt (text)</label>
         <textarea
           id="requirements-input"
-          placeholder="Exemplo:
+          placeholder="Example:
 requests==2.31.0
 pandas>=2.0,<3
 fastapi"
         ></textarea>
 
         <fieldset class="python-select" id="python-select">
-          <legend>Versoes do Python para comparar</legend>
+          <legend>Python versions to compare</legend>
         </fieldset>
 
         <div class="actions">
-          <button id="analyze-btn" type="button">
-            Analisar compatibilidade
-          </button>
+          <button id="analyze-btn" type="button">Analyze compatibility</button>
           <span id="status" aria-live="polite"></span>
         </div>
       </section>
 
-      <section class="panel" id="summary-panel">
-        <h2>Resumo</h2>
-        <div id="summary-content" class="summary-content">
-          Nenhuma analise executada.
-        </div>
-      </section>
-
       <section class="panel" id="results-panel">
-        <h2>Timeline por pacote</h2>
+        <h2>Timeline by package</h2>
         <div id="results" class="results"></div>
       </section>
     </main>
