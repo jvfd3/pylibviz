@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PyLibViz - Timeline de Compatibilidade Python</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://pyscript.net/releases/2024.1.1/core.css"
+    />
+    <script
+      type="module"
+      src="https://pyscript.net/releases/2024.1.1/core.js"
+    ></script>
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+
+    <main class="layout">
+      <header class="hero">
+        <p class="eyebrow">compatibilidade de dependencias</p>
+        <h1>PyLibViz</h1>
+        <p class="subtitle">
+          Cole seu requirements.txt e veja, em uma timeline, como as versoes dos
+          pacotes se alinham com as versoes do Python e seus requisitos de
+          compatibilidade.
+        </p>
+      </header>
+
+      <section class="panel input-panel">
+        <label for="requirements-input">requirements.txt (texto)</label>
+        <textarea
+          id="requirements-input"
+          placeholder="Exemplo:
+requests==2.31.0
+pandas>=2.0,<3
+fastapi"
+        ></textarea>
+
+        <fieldset class="python-select" id="python-select">
+          <legend>Versoes do Python para comparar</legend>
+        </fieldset>
+
+        <div class="actions">
+          <button id="analyze-btn" type="button">
+            Analisar compatibilidade
+          </button>
+          <span id="status" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <section class="panel" id="summary-panel">
+        <h2>Resumo</h2>
+        <div id="summary-content" class="summary-content">
+          Nenhuma analise executada.
+        </div>
+      </section>
+
+      <section class="panel" id="results-panel">
+        <h2>Timeline por pacote</h2>
+        <div id="results" class="results"></div>
+      </section>
+    </main>
+
+    <py-script src="app.py" config="pyscript.toml"></py-script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
