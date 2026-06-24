@@ -17,6 +17,10 @@ const els = {
   results: document.getElementById("results"),
 };
 
+let lastPackageData = [];
+let lastSelectedPy = [];
+let selectedReleaseByPackage = new Map();
+
 initializePythonVersionSelector();
 attachEvents();
 
@@ -54,6 +58,8 @@ function initializePythonVersionSelector() {
 
 function attachEvents() {
   els.analyzeBtn.addEventListener("click", onAnalyze);
+  els.results.addEventListener("click", onReleaseSelectionEvent);
+  els.results.addEventListener("keydown", onReleaseSelectionEvent);
 
   // Shortcut: Ctrl+R (or Cmd+R) to analyze compatibility.
   document.addEventListener("keydown", function (e) {
@@ -62,6 +68,26 @@ function attachEvents() {
       onAnalyze();
     }
   });
+}
+
+function onReleaseSelectionEvent(event) {
+  const releaseRow = event.target.closest(
+    ".release-row[data-package][data-version]",
+  );
+  if (!releaseRow || !els.results.contains(releaseRow)) {
+    return;
+  }
+
+  if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  selectedReleaseByPackage.set(
+    releaseRow.dataset.package,
+    releaseRow.dataset.version,
+  );
+  renderTimeline(lastPackageData, lastSelectedPy);
 }
 
 function selectedPythonVersions() {
@@ -96,6 +122,10 @@ async function onAnalyze() {
     const packageData = await Promise.all(
       validReqs.map((req) => analyzePackage(req, selectedPy)),
     );
+
+    lastPackageData = packageData;
+    lastSelectedPy = selectedPy;
+    selectedReleaseByPackage = new Map();
 
     if (warnings.length > 0) {
       setStatus(
@@ -256,7 +286,36 @@ function selectPrimaryRelease(releases, selectedPy) {
   return { index: 0, reason: "highlight: most recent release" };
 }
 
-function renderReleaseRow(release, selectedPy, highlightReason = "") {
+function resolvePrimaryRelease(pkg, selectedPy) {
+  const selectedVersion = selectedReleaseByPackage.get(pkg.packageName);
+  const selectedIndex = selectedVersion
+    ? pkg.releases.findIndex((release) => release.version === selectedVersion)
+    : -1;
+
+  if (selectedIndex !== -1) {
+    return {
+      index: selectedIndex,
+      reason: "selected version",
+    };
+  }
+
+  const primary = selectPrimaryRelease(pkg.releases, selectedPy);
+  if (primary.index !== -1) {
+    selectedReleaseByPackage.set(
+      pkg.packageName,
+      pkg.releases[primary.index].version,
+    );
+  }
+  return primary;
+}
+
+function renderReleaseRow(
+  release,
+  selectedPy,
+  highlightReason = "",
+  isSelected = false,
+  packageName = "",
+) {
   const compatBar = renderCompatibilityBar(release, selectedPy);
 
   const hitBadge = release.matchesUserSpecifier
@@ -272,7 +331,15 @@ function renderReleaseRow(release, selectedPy, highlightReason = "") {
     : "not provided";
 
   return `
-    <article class="release-row">
+    <article
+      class="release-row${isSelected ? " is-selected" : ""}"
+      data-package="${escapeHtml(packageName)}"
+      data-version="${escapeHtml(release.version)}"
+      role="button"
+      tabindex="0"
+      aria-pressed="${isSelected ? "true" : "false"}"
+      aria-label="Select version ${escapeHtml(release.version)} for ${escapeHtml(packageName)}"
+    >
       <div class="release-layout">
         <div class="release-meta-vertical">
           <div class="meta-line">
@@ -322,12 +389,22 @@ function renderTimeline(packageData, selectedPy) {
       selectedPy,
     );
 
-    const primaryRelease = pkg.releases[primaryIndex] || pkg.releases[0];
-    const fallbackIndex = primaryRelease === pkg.releases[0] ? 0 : primaryIndex;
+    const activeReleaseInfo = resolvePrimaryRelease(pkg, selectedPy);
+    const activeRelease =
+      pkg.releases[activeReleaseInfo.index] || pkg.releases[0];
+    const activeIndex = activeRelease
+      ? pkg.releases.indexOf(activeRelease)
+      : -1;
+
+    const primaryRelease =
+      activeRelease || pkg.releases[primaryIndex] || pkg.releases[0];
+    const fallbackIndex = activeIndex !== -1 ? activeIndex : primaryIndex;
 
     const extraRows = pkg.releases
       .filter((_, idx) => idx !== fallbackIndex)
-      .map((release) => renderReleaseRow(release, selectedPy))
+      .map((release) =>
+        renderReleaseRow(release, selectedPy, "", false, pkg.packageName),
+      )
       .join("");
 
     const extrasHtml = extraRows
@@ -346,7 +423,13 @@ function renderTimeline(packageData, selectedPy) {
           <span class="pkg-spec">Required version: ${escapeHtml(pkg.specifier)}</span>
         </div>
         <div class="timeline">
-          ${renderReleaseRow(primaryRelease, selectedPy, reason)}
+          ${renderReleaseRow(
+            primaryRelease,
+            selectedPy,
+            activeReleaseInfo.reason || reason,
+            true,
+            pkg.packageName,
+          )}
           ${extrasHtml}
         </div>
       </section>
